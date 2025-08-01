@@ -26,18 +26,25 @@ jobs:
           echo "" >> $OUTPUT_FILE
 
           while IFS= read -r domain || [[ -n "$domain" ]]; do
-            [[ -z "$domain" || "$domain" =~ ^# ]] && continue
-            echo "查询中: $domain"
+            # 清除行尾可能的空白符和回车符
+            domain=$(echo "$domain" | tr -d '\r' | xargs)
 
-            ips=$(dig +short A "$domain" | sort -u | tr '\n' ' ' | sed 's/ *$//')
+            # 跳过空行、以 # 开头的注释行、或者包含非法字符（非数字字母点和横线的）
+            if [[ -z "$domain" || "$domain" =~ ^# || "$domain" =~ [^a-zA-Z0-9.-] ]]; then
+              continue
+            fi
+
+            # 去除尾部句点（FQDN格式中的尾点）
+            clean_domain=${domain%.}
+
+            echo "查询中: $clean_domain"
+
+            ips=$(dig +short A "$clean_domain" | sort -u | tr '\n' ' ' | sed 's/ *$//')
 
             if [[ -n "$ips" ]]; then
               for ip in $ips; do
-                echo "$ip $domain" >> $OUTPUT_FILE
+                echo "$ip $clean_domain" >> $OUTPUT_FILE
               done
-              echo "" >> $OUTPUT_FILE
-            else
-              echo "# 未能解析 IP: $domain" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
             fi
           done < "$INPUT_FILE"
