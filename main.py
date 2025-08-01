@@ -2,6 +2,7 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import re
 import time
+from datetime import datetime, timezone
 
 def get_dns_records_with_playwright(host):
     """
@@ -15,46 +16,30 @@ def get_dns_records_with_playwright(host):
         str: 如果抓取失败，则返回错误消息。
     """
     try:
-        # 使用 sync_playwright 启动浏览器上下文
         with sync_playwright() as p:
-            print(f"正在启动浏览器并访问: https://tool.chinaz.com/dns/{host}")
-            # 启动 Chromium 浏览器，设置 headless=False 为非无头模式
-            browser = p.chromium.launch(headless=False)
+            print(f"正在查询域名: {host}")
+            browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             
-            # 访问 URL
             page.goto(f"https://tool.chinaz.com/dns/{host}")
 
-            # 增加一个刷新逻辑：在访问后2秒内如果没有结果则刷新一次
             try:
-                print("等待IP地址表格首次加载...")
-                # 首次等待2秒，如果表格未出现，则刷新
                 page.wait_for_selector('table.item-table', timeout=2000)
-                print("IP地址表格已加载。")
             except Exception:
-                print("2秒内未加载完成，正在刷新页面...")
+                print(f"刷新页面: {host}")
                 page.reload()
-                print("页面已刷新。")
             
-            # 刷新后，等待 IP 地址表格加载完成，最长等待30秒
-            print("等待IP地址表格加载...")
             page.wait_for_selector('table.item-table', timeout=30000)
-            print("IP地址表格已加载。")
-
-            # 获取页面渲染后的完整 HTML 内容
             html_content = page.content()
-            browser.close() # 关闭浏览器
+            browser.close()
 
-            # 使用 BeautifulSoup 解析 HTML
             soup = BeautifulSoup(html_content, 'html.parser')
+            ip_addresses = set()
             
-            ip_addresses = set()  # 使用集合来自动去重
-            
-            # 查找所有包含IP地址的表格。
             ip_tables = soup.find_all('table', class_='item-table')
             
             if not ip_tables:
-                return "未能找到DNS解析结果表格，可能页面结构已更改或查询无结果。"
+                return []
             
             for ip_table in ip_tables:
                 ip_info_paragraphs = ip_table.find_all('p', class_=['fl', 'tl'])
@@ -66,22 +51,49 @@ def get_dns_records_with_playwright(host):
                         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
                             ip_addresses.add(ip_address)
             
-            if not ip_addresses:
-                return "未能从表格中提取到任何IP地址。"
-            
             return list(ip_addresses)
 
     except Exception as e:
-        return f"发生错误: {e}"
+        print(f"查询 {host} 时发生错误: {e}")
+        return []
 
-# 示例用法
+def process_domains():
+    # 读取domains.txt文件
+    try:
+        with open('domains.txt', 'r') as f:
+            domains = [line.strip() for line in f if line.strip()]
+    except Exception as e:
+        print(f"读取domains.txt失败: {e}")
+        return
+
+    # 准备hosts_results.txt的头部内容
+    current_time = datetime.now(timezone.utc).strftime("%a %b %d %H:%M:%S UTC %Y")
+    header = f"""# GitHub 相关域名最新 IP 地址 (Hosts 格式)
+# 最后更新于: {current_time}
+
+"""
+
+    # 创建/覆盖hosts_results.txt文件
+    with open('hosts_results.txt', 'w') as f:
+        f.write(header)
+
+        # 处理每个域名
+        for domain in domains:
+            print(f"\n正在处理域名: {domain}")
+            ips = get_dns_records_with_playwright(domain)
+            
+            # 如果找到IP地址，写入文件
+            if ips:
+                for ip in ips:
+                    f.write(f"{ip} {domain}\n")
+                print(f"成功: {domain} -> {', '.join(ips)}")
+            else:
+                print(f"警告: 未能找到 {domain} 的IP地址")
+            
+            # 添加短暂延迟以避免请求过于频繁
+            time.sleep(2)
+
 if __name__ == "__main__":
-    host = 'github.com'
-    print(f"正在使用 Playwright 模拟浏览器查询域名: {host} 的DNS解析记录...")
-    result = get_dns_records_with_playwright(host)
-    if isinstance(result, list):
-        print("查询到的IP地址:")
-        for ip in result:
-            print(f"- {ip}")
-    else:
-        print(f"查询失败: {result}")
+    print("开始处理域名列表...")
+    process_domains()
+    print("\n处理完成，结果已写入 hosts_results.txt")
