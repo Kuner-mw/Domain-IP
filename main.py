@@ -116,20 +116,43 @@ def main():
         return
 
     results = []
+    failed_domains = []
     total = len(domains)
     
+    # 第一轮查询
     for i, domain in enumerate(domains, 1):
-        logging.info(f"正在查询 ({i}/{total}): {domain}")
+        logging.info(f"第一轮查询 ({i}/{total}): {domain}")
         ips = get_dns_records_with_playwright(domain)
         if ips:
             logging.info(f"成功获取到 {domain} 的IP地址: {', '.join(ips)}")
+            results.append((domain, ips))
         else:
-            logging.warning(f"未能获取到 {domain} 的IP地址")
-        results.append((domain, ips))
+            logging.warning(f"未能获取到 {domain} 的IP地址，将在第二轮重试")
+            failed_domains.append(domain)
         
-        # 添加间隔时间避免被封
-        if i < total:
-            time.sleep(3)
+        # 每次查询后延时2秒
+        time.sleep(2)
+    
+    # 第二轮重试失败的域名
+    if failed_domains:
+        logging.info(f"开始第二轮查询，共有 {len(failed_domains)} 个域名需要重试")
+        retry_total = len(failed_domains)
+        
+        for i, domain in enumerate(failed_domains, 1):
+            logging.info(f"第二轮查询 ({i}/{retry_total}): {domain}")
+            ips = get_dns_records_with_playwright(domain)
+            if ips:
+                logging.info(f"重试成功：{domain} 的IP地址: {', '.join(ips)}")
+                results.append((domain, ips))
+            else:
+                logging.warning(f"重试失败：仍未能获取到 {domain} 的IP地址")
+                results.append((domain, []))
+            
+            # 每次查询后延时2秒
+            time.sleep(2)
+    
+    # 按域名排序结果
+    results.sort(key=lambda x: x[0])
     
     save_results(results)
     logging.info("所有域名处理完成，结果已保存到 hosts_results.txt")
