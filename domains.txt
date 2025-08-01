@@ -1,32 +1,35 @@
-github.githubassets.com
-central.github.com
-desktop.githubusercontent.com
-camo.githubusercontent.com
-github.map.fastly.net
-github.global.ssl.fastly.net
-gist.github.com
-github.io
+# GitHub 主站服务
 github.com
+gist.github.com
 api.github.com
+github.io
+githubstatus.com
+github.community
+
+# GitHub 静态资源
 raw.githubusercontent.com
+raw.github.com
+media.githubusercontent.com
+objects.githubusercontent.com
+codeload.github.com
+copilot-proxy.githubusercontent.com
+
+# 图像和头像服务（合并简化）
+avatars.githubusercontent.com
 user-images.githubusercontent.com
 favicons.githubusercontent.com
-avatars5.githubusercontent.com
-avatars4.githubusercontent.com
-avatars3.githubusercontent.com
-avatars2.githubusercontent.com
-avatars1.githubusercontent.com
-avatars0.githubusercontent.com
-avatars.githubusercontent.com
-codeload.github.com
+camo.githubusercontent.com
+desktop.githubusercontent.com
+
+# 样式与资源
+github.githubassets.com
+github.map.fastly.net
+github.global.ssl.fastly.net
+central.github.com
+
+# AWS S3 托管资源
 github-cloud.s3.amazonaws.com
 github-com.s3.amazonaws.com
 github-production-release-asset-2e65be.s3.amazonaws.com
 github-production-user-asset-6210df.s3.amazonaws.com
 github-production-repository-file-5c1aeb.s3.amazonaws.com
-githubstatus.com
-github.community
-media.githubusercontent.com
-objects.githubusercontent.com
-raw.github.com
-copilot-proxy.githubusercontent.com
