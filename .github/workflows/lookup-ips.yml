@@ -25,26 +25,49 @@ jobs:
           echo "# 最后更新于: $(date -u)" >> $OUTPUT_FILE
           echo "" >> $OUTPUT_FILE
 
-          while IFS= read -r domain || [[ -n "$domain" ]]; do
-            # 清除行尾可能的空白符和回车符
-            domain=$(echo "$domain" | tr -d '\r' | xargs)
+          is_ipv4() {
+            [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+          }
 
-            # 跳过空行、以 # 开头的注释行、或者包含非法字符（非数字字母点和横线的）
+          resolve_ip() {
+            local domain="$1"
+            local try=0
+            local max_try=5
+            while (( try < max_try )); do
+              local ips
+              ips=$(dig +short A "$domain" | sort -u)
+              if [[ -n "$ips" ]]; then
+                for ip in $ips; do
+                  if is_ipv4 "$ip"; then
+                    echo "$ip"
+                    return 0
+                  fi
+                done
+              fi
+              local cname
+              cname=$(dig +short CNAME "$domain" | head -n1 | tr -d '\r' | xargs)
+              if [[ -n "$cname" ]]; then
+                cname=${cname%.}
+                domain="$cname"
+                ((try++))
+                continue
+              fi
+              break
+            done
+            return 1
+          }
+
+          while IFS= read -r domain || [[ -n "$domain" ]]; do
+            domain=$(echo "$domain" | tr -d '\r' | xargs)
             if [[ -z "$domain" || "$domain" =~ ^# || "$domain" =~ [^a-zA-Z0-9.-] ]]; then
               continue
             fi
-
-            # 去除尾部句点（FQDN格式中的尾点）
             clean_domain=${domain%.}
-
             echo "查询中: $clean_domain"
 
-            ips=$(dig +short A "$clean_domain" | sort -u | tr '\n' ' ' | sed 's/ *$//')
-
-            if [[ -n "$ips" ]]; then
-              for ip in $ips; do
-                echo "$ip $clean_domain" >> $OUTPUT_FILE
-              done
+            ip=$(resolve_ip "$clean_domain")
+            if [[ -n "$ip" ]]; then
+              echo "$ip $clean_domain" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
             fi
           done < "$INPUT_FILE"
@@ -60,4 +83,3 @@ jobs:
             git push
           else
             echo "无变化，无需提交"
-          fi
