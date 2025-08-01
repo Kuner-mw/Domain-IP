@@ -1,4 +1,3 @@
-#Github
 alive.github.com
 api.github.com
 api.individual.githubcopilot.com
