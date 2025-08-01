@@ -2,6 +2,7 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import re
 import time
+from datetime import datetime, timezone
 
 def get_dns_records_with_playwright(host):
     """
@@ -15,46 +16,32 @@ def get_dns_records_with_playwright(host):
         str: 如果抓取失败，则返回错误消息。
     """
     try:
-        # 使用 sync_playwright 启动浏览器上下文
         with sync_playwright() as p:
-            print(f"正在启动浏览器并访问: https://tool.chinaz.com/dns/{host}")
-            # 启动 Chromium 浏览器，设置 headless=False 为非无头模式
+            print(f"正在查询域名: {host}")
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             
-            # 访问 URL
             page.goto(f"https://tool.chinaz.com/dns/{host}")
 
-            # 增加一个刷新逻辑：在访问后2秒内如果没有结果则刷新一次
             try:
-                print("等待IP地址表格首次加载...")
-                # 首次等待2秒，如果表格未出现，则刷新
                 page.wait_for_selector('table.item-table', timeout=2000)
-                print("IP地址表格已加载。")
             except Exception:
-                print("2秒内未加载完成，正在刷新页面...")
+                print(f"刷新页面: {host}")
                 page.reload()
-                print("页面已刷新。")
             
-            # 刷新后，等待 IP 地址表格加载完成，最长等待30秒
-            print("等待IP地址表格加载...")
             page.wait_for_selector('table.item-table', timeout=30000)
-            print("IP地址表格已加载。")
 
-            # 获取页面渲染后的完整 HTML 内容
             html_content = page.content()
-            browser.close() # 关闭浏览器
+            browser.close()
 
-            # 使用 BeautifulSoup 解析 HTML
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            ip_addresses = set()  # 使用集合来自动去重
+            ip_addresses = set()
             
-            # 查找所有包含IP地址的表格。
             ip_tables = soup.find_all('table', class_='item-table')
             
             if not ip_tables:
-                return "未能找到DNS解析结果表格，可能页面结构已更改或查询无结果。"
+                return []
             
             for ip_table in ip_tables:
                 ip_info_paragraphs = ip_table.find_all('p', class_=['fl', 'tl'])
@@ -66,22 +53,57 @@ def get_dns_records_with_playwright(host):
                         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
                             ip_addresses.add(ip_address)
             
-            if not ip_addresses:
-                return "未能从表格中提取到任何IP地址。"
-            
             return list(ip_addresses)
 
     except Exception as e:
-        return f"发生错误: {e}"
+        print(f"查询 {host} 时发生错误: {e}")
+        return []
 
-# 示例用法
+def read_domains(filename):
+    """读取域名文件"""
+    try:
+        with open(filename, 'r') as f:
+            return [line.strip() for line in f if line.strip()]
+    except Exception as e:
+        print(f"读取域名文件出错: {e}")
+        return []
+
+def write_hosts(filename, results):
+    """写入 hosts 格式文件"""
+    try:
+        with open(filename, 'w') as f:
+            # 写入头部注释
+            f.write("# GitHub 相关域名最新 IP 地址 (Hosts 格式)\n")
+            utc_time = datetime.now(timezone.utc).strftime("%c UTC")
+            f.write(f"# 最后更新于: {utc_time}\n\n")
+            
+            # 写入hosts记录
+            for domain, ips in results:
+                if ips:  # 如果有IP地址
+                    # 取第一个IP地址作为hosts记录
+                    f.write(f"{ips[0]} {domain}\n")
+                else:
+                    # 如果没有找到IP，添加注释
+                    f.write(f"# {domain} - 未找到IP地址\n")
+    except Exception as e:
+        print(f"写入hosts文件出错: {e}")
+
+def main():
+    # 读取域名列表
+    domains = read_domains('domains.txt')
+    results = []
+    
+    # 查询每个域名的IP
+    for domain in domains:
+        print(f"\n处理域名: {domain}")
+        ips = get_dns_records_with_playwright(domain)
+        results.append((domain, ips))
+        # 添加延时以避免请求过于频繁
+        time.sleep(2)
+    
+    # 写入结果
+    write_hosts('hosts_results.txt', results)
+    print("\n完成! 结果已写入 hosts_results.txt")
+
 if __name__ == "__main__":
-    host = 'github.com'
-    print(f"正在使用 Playwright 模拟浏览器查询域名: {host} 的DNS解析记录...")
-    result = get_dns_records_with_playwright(host)
-    if isinstance(result, list):
-        print("查询到的IP地址:")
-        for ip in result:
-            print(f"- {ip}")
-    else:
-        print(f"查询失败: {result}")
+    main()
