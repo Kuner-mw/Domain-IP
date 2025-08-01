@@ -1,82 +1,37 @@
 name: 定期获取域名IP
 
 on:
-  workflow_dispatch:
+  # 设置一个计划任务，例如每天 UTC 时间 02:00 运行
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 2 * * *'
+  # 也可以在代码提交到 main 分支时运行
+  push:
+    branches: [ main ]
+  # 允许手动从 Actions 标签页运行
+  workflow_dispatch:
 
 jobs:
-  lookup-ips:
+  run-script:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: 配置 Git
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "github-actions-bot@users.noreply.github.com"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: 安装依赖
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl jq
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install Playwright browsers
+      run: |
+        playwright install
 
-      - name: 查询 IP 并生成 hosts 文件
-        shell: bash
-        run: |
-          #!/usr/bin/env bash
-          set -e
-          
-          INPUT_FILE="domains.txt"
-          OUTPUT_FILE="hosts_results.txt"
-          
-          echo "# GitHub 相关域名最新 IP 地址 (Hosts 格式)" > $OUTPUT_FILE
-          echo "# 最后更新于: $(date -u)" >> $OUTPUT_FILE
-          echo "" >> $OUTPUT_FILE
-          
-          query_chinaz() {
-            local domain="$1"
-            local url="https://tool.chinaz.com/dns/$domain"
-            
-            # 获取页面内容并提取IP地址和使用率
-            curl -s "$url" | grep -oP '(?<=ipwhois/\?q=)[0-9.]+(?=.*?color-616161">)([0-9.]+)(?=%<)' | while read -r ip percent; do
-              echo "$ip"
-            done
-          }
-          
-          while IFS= read -r domain || [[ -n "$domain" ]]; do
-            domain=$(echo "$domain" | tr -d '\r' | xargs)
-            if [[ -z "$domain" || "$domain" =~ ^# || ! "$domain" =~ ^[a-zA-Z0-9.-]+$ ]]; then
-              continue
-            fi
-            
-            echo "正在查询: $domain"
-            
-            # 确保请求间有足够延迟，避免被限制
-            sleep 2
-            
-            # 获取IP地址
-            readarray -t ips < <(query_chinaz "$domain")
-            
-            if [ ${#ips[@]} -gt 0 ]; then
-              # 写入所有发现的IP
-              for ip in "${ips[@]}"; do
-                if [[ -n "$ip" && "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                  echo "$ip $domain" >> $OUTPUT_FILE
-                fi
-              done
-              echo "" >> $OUTPUT_FILE
-            fi
-          done < "$INPUT_FILE"
-
-      - name: 提交更新
-        run: |
-          git add hosts_results.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "自动更新域名IP地址列表 $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-            git push
-          else
-            echo "无变化，无需提交"
-          fi
+    - name: Run Python script
+      run: |
+        python main.py
