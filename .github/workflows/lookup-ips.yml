@@ -59,7 +59,8 @@ jobs:
 
           while IFS= read -r domain || [[ -n "$domain" ]]; do
             domain=$(echo "$domain" | tr -d '\r' | xargs)
-            if [[ -z "$domain" || "$domain" =~ ^# || "$domain" =~ [^a-zA-Z0-9.-] ]]; then
+            # 跳过空行、注释行、或包含不合法字符的行（整行只允许 a-zA-Z0-9.-）
+            if [[ -z "$domain" || "$domain" =~ ^# || ! "$domain" =~ ^[a-zA-Z0-9.-]+$ ]]; then
               continue
             fi
             clean_domain=${domain%.}
