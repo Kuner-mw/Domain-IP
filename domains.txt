@@ -17,7 +17,7 @@ desktop.githubusercontent.com
 education.github.com
 favicons.githubusercontent.com
 gist.github.com
-github-blog
+github.blog
 github-cloud.s3.amazonaws.com
 github-com.s3.amazonaws.com
 github-production-release-asset-2e65be.s3.amazonaws.com
