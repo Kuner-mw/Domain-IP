@@ -1,17 +1,15 @@
-🔗 GitHub 主站服务
+###github
 github.com
 api.github.com
 gist.github.com
 github.io
 githubstatus.com
 github.community
-📦 文件资源与下载
 raw.githubusercontent.com
 raw.github.com
 codeload.github.com
 objects.githubusercontent.com
 media.githubusercontent.com
-🖼️ 图像与静态资源
 avatars.githubusercontent.com
 user-images.githubusercontent.com
 favicons.githubusercontent.com
@@ -20,11 +18,9 @@ desktop.githubusercontent.com
 github.githubassets.com
 github.map.fastly.net
 github.global.ssl.fastly.net
-💡 特殊功能服务
 copilot-proxy.githubusercontent.com    
 collector.github.com                  
 collector-cdn.github.com               
-☁️ AWS 托管资源（用于 Releases / Actions / Pages）
 github-cloud.s3.amazonaws.com
 github-com.s3.amazonaws.com
 github-production-release-asset-2e65be.s3.amazonaws.com
