@@ -13,6 +13,8 @@ on:
 jobs:
   run-script:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 添加写入权限
 
     steps:
     - name: Checkout repository
@@ -31,7 +33,15 @@ jobs:
     - name: Install Playwright browsers
       run: |
         playwright install
+        playwright install-deps
 
     - name: Run Python script
       run: |
         python main.py
+
+    - name: Commit and push if changed
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        git add hosts_results.txt
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update hosts_results.txt" && git push)
