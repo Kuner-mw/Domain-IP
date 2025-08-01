@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 import logging
 import time
+from datetime import datetime, UTC
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -43,7 +44,7 @@ def get_dns_records_with_playwright(host):
                 logging.info("表格加载成功。")
             except Exception:
                 page.screenshot(path="debug_failed_table.png", full_page=True)
-                return "表格加载失败，已截图为 debug_failed_table.png"
+                return []
 
             # 获取渲染后的HTML
             html_content = page.content()
@@ -55,7 +56,7 @@ def get_dns_records_with_playwright(host):
             ip_tables = soup.find_all('table', class_='item-table')
 
             if not ip_tables:
-                return "未能找到DNS解析结果表格，可能页面结构已更改或查询无结果。"
+                return []
 
             for ip_table in ip_tables:
                 ip_info_paragraphs = ip_table.find_all('p', class_=['fl', 'tl'])
@@ -66,22 +67,72 @@ def get_dns_records_with_playwright(host):
                         if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
                             ip_addresses.add(ip_address)
 
-            if not ip_addresses:
-                return "未能从表格中提取到任何IP地址。"
             return list(ip_addresses)
 
     except Exception as e:
-        return f"发生严重错误: {e}"
+        logging.error(f"查询出错: {e}")
+        return []
 
+def read_domains():
+    try:
+        with open('domains.txt', 'r') as f:
+            return [line.strip() for line in f if line.strip()]
+    except Exception as e:
+        logging.error(f"读取domains.txt失败: {e}")
+        return []
 
-# 示例用法
+def save_results(results):
+    try:
+        with open('hosts_results.txt', 'w', encoding='utf-8') as f:
+            # 写入头部信息
+            f.write("# GitHub 相关域名最新 IP 地址\n")
+            f.write(f"# 最后更新于: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
+            
+            # 写入解析结果
+            for domain, ips in results:
+                if ips:
+                    # 为每个域名的每个IP创建一行
+                    for ip in ips:
+                        f.write(f"{domain} {ip}\n")
+                else:
+                    f.write(f"# {domain} - 未能获取IP地址\n")
+            
+            # 添加统计信息
+            total_domains = len(results)
+            successful_domains = sum(1 for _, ips in results if ips)
+            total_ips = sum(len(ips) for _, ips in results if ips)
+            f.write(f"\n# 统计信息:\n")
+            f.write(f"# 总域名数: {total_domains}\n")
+            f.write(f"# 成功解析域名数: {successful_domains}\n")
+            f.write(f"# 总IP数: {total_ips}\n")
+            
+    except Exception as e:
+        logging.error(f"保存结果到hosts_results.txt失败: {e}")
+
+def main():
+    domains = read_domains()
+    if not domains:
+        logging.error("没有找到要查询的域名")
+        return
+
+    results = []
+    total = len(domains)
+    
+    for i, domain in enumerate(domains, 1):
+        logging.info(f"正在查询 ({i}/{total}): {domain}")
+        ips = get_dns_records_with_playwright(domain)
+        if ips:
+            logging.info(f"成功获取到 {domain} 的IP地址: {', '.join(ips)}")
+        else:
+            logging.warning(f"未能获取到 {domain} 的IP地址")
+        results.append((domain, ips))
+        
+        # 添加间隔时间避免被封
+        if i < total:
+            time.sleep(3)
+    
+    save_results(results)
+    logging.info("所有域名处理完成，结果已保存到 hosts_results.txt")
+
 if __name__ == "__main__":
-    host = 'api.github.com'
-    logging.info(f"正在使用 Playwright 模拟浏览器查询域名: {host} 的DNS解析记录...")
-    result = get_dns_records_with_playwright(host)
-    if isinstance(result, list):
-        logging.info("查询到的IP地址:")
-        for ip in result:
-            logging.info(f"- {ip}")
-    else:
-        logging.error(f"查询失败: {result}")
+    main()
