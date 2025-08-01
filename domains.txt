@@ -1,33 +1,30 @@
-# GitHub 主站服务
+🔗 GitHub 主站服务
 github.com
-gist.github.com
 api.github.com
+gist.github.com
 github.io
 githubstatus.com
 github.community
-
-# GitHub 静态资源
+📦 文件资源与下载
 raw.githubusercontent.com
 raw.github.com
-media.githubusercontent.com
-objects.githubusercontent.com
 codeload.github.com
-copilot-proxy.githubusercontent.com
-
-# 图像和头像服务（合并简化）
+objects.githubusercontent.com
+media.githubusercontent.com
+🖼️ 图像与静态资源
 avatars.githubusercontent.com
 user-images.githubusercontent.com
 favicons.githubusercontent.com
 camo.githubusercontent.com
 desktop.githubusercontent.com
-
-# 样式与资源
 github.githubassets.com
 github.map.fastly.net
 github.global.ssl.fastly.net
-central.github.com
-
-# AWS S3 托管资源
+💡 特殊功能服务
+copilot-proxy.githubusercontent.com    
+collector.github.com                  
+collector-cdn.github.com               
+☁️ AWS 托管资源（用于 Releases / Actions / Pages）
 github-cloud.s3.amazonaws.com
 github-com.s3.amazonaws.com
 github-production-release-asset-2e65be.s3.amazonaws.com
