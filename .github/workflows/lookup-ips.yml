@@ -18,8 +18,10 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "github-actions-bot@users.noreply.github.com"
 
-      - name: 安装 dig 工具
-        run: sudo apt-get update && sudo apt-get install -y dnsutils
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq
 
       - name: 查询 IP 并生成 hosts 文件
         shell: bash
@@ -29,68 +31,40 @@ jobs:
           
           INPUT_FILE="domains.txt"
           OUTPUT_FILE="hosts_results.txt"
-
+          
           echo "# GitHub 相关域名最新 IP 地址 (Hosts 格式)" > $OUTPUT_FILE
           echo "# 最后更新于: $(date -u)" >> $OUTPUT_FILE
           echo "" >> $OUTPUT_FILE
-
-          is_ipv4() {
-            [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
-          }
-
-          resolve_ip() {
+          
+          query_chinaz() {
             local domain="$1"
-            local try=0
-            local max_try=5
-            local all_ips=()
+            local url="https://tool.chinaz.com/dns/$domain"
             
-            while (( try < max_try )); do
-              local ips
-              ips=$(dig +short A "$domain" | sort -u)
-              
-              # 收集所有合法的 IP
-              for ip in $ips; do
-                if is_ipv4 "$ip"; then
-                  all_ips+=("$ip")
-                fi
-              done
-              
-              # 如果找到了IP，继续查找CNAME以获取更多IP
-              local cname
-              cname=$(dig +short CNAME "$domain" | head -n1 | tr -d '\r' | xargs)
-              if [[ -n "$cname" ]]; then
-                cname=${cname%.}
-                domain="$cname"
-                ((try++))
-                continue
-              fi
-              break
+            # 获取页面内容并提取IP地址和使用率
+            curl -s "$url" | grep -oP '(?<=ipwhois/\?q=)[0-9.]+(?=.*?color-616161">)([0-9.]+)(?=%<)' | while read -r ip percent; do
+              echo "$ip"
             done
-
-            # 输出所有收集到的IP
-            if [ ${#all_ips[@]} -gt 0 ]; then
-              printf '%s\n' "${all_ips[@]}"
-              return 0
-            fi
-            return 1
           }
-
+          
           while IFS= read -r domain || [[ -n "$domain" ]]; do
             domain=$(echo "$domain" | tr -d '\r' | xargs)
             if [[ -z "$domain" || "$domain" =~ ^# || ! "$domain" =~ ^[a-zA-Z0-9.-]+$ ]]; then
               continue
             fi
-            clean_domain=${domain%.}
-            echo "查询中: $clean_domain"
-
-            # 获取所有IP
-            readarray -t ips < <(resolve_ip "$clean_domain")
+            
+            echo "正在查询: $domain"
+            
+            # 确保请求间有足够延迟，避免被限制
+            sleep 2
+            
+            # 获取IP地址
+            readarray -t ips < <(query_chinaz "$domain")
             
             if [ ${#ips[@]} -gt 0 ]; then
-              # 写入所有IP
+              # 写入所有发现的IP
               for ip in "${ips[@]}"; do
-                if [[ -n "$ip" && $(is_ipv4 "$ip" && echo yes) == yes ]]; then
-                  echo "$ip $clean_domain" >> $OUTPUT_FILE
+                if [[ -n "$ip" && "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "$ip $domain" >> $OUTPUT_FILE
                 fi
               done
               echo "" >> $OUTPUT_FILE
@@ -101,7 +75,7 @@ jobs:
         run: |
           git add hosts_results.txt
           if ! git diff --cached --quiet; then
-            git commit -m "自动更新域名IP地址列表"
+            git commit -m "自动更新域名IP地址列表 $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
             git push
           else
             echo "无变化，无需提交"
