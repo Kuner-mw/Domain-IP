@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import re
 import logging
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -86,7 +86,7 @@ def save_results(results):
         with open('hosts_results.txt', 'w', encoding='utf-8') as f:
             # 写入头部信息
             f.write("# GitHub 相关域名最新 IP 地址\n")
-            f.write(f"# 最后更新于: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
+            f.write(f"# 最后更新于: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
             
             # 写入解析结果
             for domain, ips in results:
