@@ -42,15 +42,20 @@ jobs:
             local domain="$1"
             local try=0
             local max_try=5
+            local all_ips=()
+            
             while (( try < max_try )); do
               local ips
               ips=$(dig +short A "$domain" | sort -u)
+              
+              # 收集所有合法的 IP
               for ip in $ips; do
                 if is_ipv4 "$ip"; then
-                  echo "$ip"
-                  return 0
+                  all_ips+=("$ip")
                 fi
               done
+              
+              # 如果找到了IP，继续查找CNAME以获取更多IP
               local cname
               cname=$(dig +short CNAME "$domain" | head -n1 | tr -d '\r' | xargs)
               if [[ -n "$cname" ]]; then
@@ -61,6 +66,12 @@ jobs:
               fi
               break
             done
+
+            # 输出所有收集到的IP
+            if [ ${#all_ips[@]} -gt 0 ]; then
+              printf '%s\n' "${all_ips[@]}"
+              return 0
+            fi
             return 1
           }
 
@@ -72,9 +83,16 @@ jobs:
             clean_domain=${domain%.}
             echo "查询中: $clean_domain"
 
-            ip=$(resolve_ip "$clean_domain")
-            if [[ -n "$ip" && $(is_ipv4 "$ip" && echo yes) == yes ]]; then
-              echo "$ip $clean_domain" >> $OUTPUT_FILE
+            # 获取所有IP
+            readarray -t ips < <(resolve_ip "$clean_domain")
+            
+            if [ ${#ips[@]} -gt 0 ]; then
+              # 写入所有IP
+              for ip in "${ips[@]}"; do
+                if [[ -n "$ip" && $(is_ipv4 "$ip" && echo yes) == yes ]]; then
+                  echo "$ip $clean_domain" >> $OUTPUT_FILE
+                fi
+              done
               echo "" >> $OUTPUT_FILE
             fi
           done < "$INPUT_FILE"
