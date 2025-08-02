@@ -77,7 +77,7 @@ def get_dns_records_with_playwright(host):
 def read_domains():
     try:
         with open('domains.txt', 'r') as f:
-            return [line.strip() for line in f if line.strip()]
+            return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
     except Exception as e:
         logging.error(f"读取domains.txt失败: {e}")
         return []
