@@ -64,7 +64,7 @@ def get_dns_records_with_playwright(host):
                     link = p_tag.find('a')
                     if link:
                         ip_address = link.get_text(strip=True)
-                        if ip_address not in {"0.0.0.0", "20.205.243.166", "20.200.245.247", "20.27.177.113"} and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
+                        if ip_address not in {"0.0.0.0"} and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
                             ip_addresses.add(ip_address)
 
 
